@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="editor_settings.xml" />
+        <include domain="sharedpref" path="recent_files.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="editor_settings.xml" />
+        <include domain="sharedpref" path="recent_files.xml" />
+    </device-transfer>
+</data-extraction-rules>

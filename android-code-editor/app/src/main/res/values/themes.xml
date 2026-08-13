@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Compose paints the real UI; this theme only covers the window before the
+        first frame, so it stays deliberately plain.
+    -->
+    <style name="Theme.CodeEdit" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/launcher_background</item>
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>
