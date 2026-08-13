@@ -34,6 +34,10 @@ Kotlin, Jetpack Compose, no third-party libraries.
   quotes, operators and tab.
 - Pinch to zoom the text in and out, between 8 and 32 sp. Two fingers zoom;
   single-finger taps, selection and scrolling are untouched.
+- Custom text and background colours for the editor, chosen from swatches, RGB
+  sliders or a hex code, with a live preview and a low-contrast warning. The
+  gutter and search highlights are derived from the pair so they stay legible,
+  and either colour can be reset to the theme on its own.
 - Word wrap, font size, indent width, tabs-versus-spaces, light/dark/system
   theme — all persisted.
 

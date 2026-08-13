@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.harigs.codeedit.data.EditorPreferences
+import com.harigs.codeedit.editor.ColorTools
 import com.harigs.codeedit.editor.Language
 import com.harigs.codeedit.editor.SyntaxHighlighter
 import com.harigs.codeedit.editor.TextTools
@@ -85,7 +86,10 @@ fun CodeEditor(
     onFontSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val palette = LocalSyntaxPalette.current
+    val themePalette = LocalSyntaxPalette.current
+    val palette = remember(themePalette, preferences.textColor, preferences.backgroundColor) {
+        themePalette.withOverrides(preferences.textColor, preferences.backgroundColor)
+    }
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
     val verticalScroll = rememberScrollState()
@@ -101,6 +105,13 @@ fun CodeEditor(
         )
     }
     val gutterStyle = remember(textStyle, palette) { textStyle.copy(color = palette.gutter) }
+    // A themed cursor disappears against a strongly coloured background, so a
+    // custom background borrows the text colour for it instead.
+    val cursorColor = if (preferences.backgroundColor == ColorTools.UNSET) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        palette.plain
+    }
 
     val digits = maxOf(2, TextTools.lineCount(value.text).toString().length)
     val charWidthPx = remember(textStyle) {
@@ -131,7 +142,7 @@ fun CodeEditor(
 
     BoxWithConstraints(
         modifier
-            .background(MaterialTheme.colorScheme.surface)
+            .background(palette.background)
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -218,7 +229,7 @@ fun CodeEditor(
                             vertical = TEXT_PADDING_VERTICAL,
                         ),
                     textStyle = textStyle,
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    cursorBrush = SolidColor(cursorColor),
                     visualTransformation = transformation,
                     onTextLayout = { layout = it },
                     keyboardOptions = KeyboardOptions(
@@ -258,7 +269,7 @@ private fun LineNumberGutter(
         Modifier
             .width(width)
             .height(height)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .background(palette.gutterBackground)
             .drawBehind {
                 val result = layout ?: return@drawBehind
                 val textTop = TEXT_PADDING_VERTICAL.toPx()

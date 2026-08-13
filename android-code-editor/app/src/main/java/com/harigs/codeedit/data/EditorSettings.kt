@@ -1,6 +1,7 @@
 package com.harigs.codeedit.data
 
 import android.content.Context
+import com.harigs.codeedit.editor.ColorTools
 
 enum class ThemeChoice { SYSTEM, LIGHT, DARK }
 
@@ -15,7 +16,14 @@ data class EditorPreferences(
     val autoIndent: Boolean = true,
     val autoCloseBrackets: Boolean = true,
     val highlightSyntax: Boolean = true,
+    /** Editor text colour as ARGB, or [ColorTools.UNSET] to follow the theme. */
+    val textColor: Int = ColorTools.UNSET,
+    /** Editor background as ARGB, or [ColorTools.UNSET] to follow the theme. */
+    val backgroundColor: Int = ColorTools.UNSET,
 ) {
+    val hasCustomColors: Boolean
+        get() = textColor != ColorTools.UNSET || backgroundColor != ColorTools.UNSET
+
     /** The string inserted for one indentation level. */
     val indentUnit: String get() = if (useSpaces) " ".repeat(tabWidth) else "\t"
 
@@ -46,6 +54,8 @@ class EditorSettings(context: Context) {
             autoIndent = prefs.getBoolean("autoIndent", defaults.autoIndent),
             autoCloseBrackets = prefs.getBoolean("autoClose", defaults.autoCloseBrackets),
             highlightSyntax = prefs.getBoolean("highlight", defaults.highlightSyntax),
+            textColor = prefs.getInt("textColor", defaults.textColor),
+            backgroundColor = prefs.getInt("backgroundColor", defaults.backgroundColor),
         )
     }
 
@@ -60,6 +70,8 @@ class EditorSettings(context: Context) {
             .putBoolean("autoIndent", preferences.autoIndent)
             .putBoolean("autoClose", preferences.autoCloseBrackets)
             .putBoolean("highlight", preferences.highlightSyntax)
+            .putInt("textColor", preferences.textColor)
+            .putInt("backgroundColor", preferences.backgroundColor)
             .apply()
     }
 }

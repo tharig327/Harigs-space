@@ -8,7 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import com.harigs.codeedit.data.ThemeChoice
+import com.harigs.codeedit.editor.ColorTools
 import com.harigs.codeedit.editor.TokenType
 
 private val LightColors = lightColorScheme(
@@ -44,6 +46,8 @@ private val DarkColors = darkColorScheme(
 /** The colours used to paint code. */
 data class SyntaxPalette(
     val plain: Color,
+    val background: Color,
+    val gutterBackground: Color,
     val gutter: Color,
     val currentLineGutter: Color,
     val selection: Color,
@@ -52,10 +56,34 @@ data class SyntaxPalette(
     val tokens: Map<TokenType, Color>,
 ) {
     fun colorFor(type: TokenType): Color = tokens[type] ?: plain
+
+    /**
+     * Applies the user's chosen text and background colours. Everything that
+     * has to stay readable against them — the gutter, the search highlights —
+     * is derived from the pair rather than kept from the theme.
+     */
+    fun withOverrides(textColor: Int, backgroundColor: Int): SyntaxPalette {
+        if (textColor == ColorTools.UNSET && backgroundColor == ColorTools.UNSET) return this
+
+        val text = if (textColor == ColorTools.UNSET) plain.toArgb() else textColor
+        val surface = if (backgroundColor == ColorTools.UNSET) background.toArgb() else backgroundColor
+
+        return copy(
+            plain = Color(text),
+            background = Color(surface),
+            gutterBackground = Color(ColorTools.gutterBackground(surface)),
+            gutter = Color(ColorTools.gutterColor(text, surface)),
+            currentLineGutter = Color(text),
+            matchHighlight = Color(ColorTools.highlight(surface, strong = false)),
+            activeMatchHighlight = Color(ColorTools.highlight(surface, strong = true)),
+        )
+    }
 }
 
 private val LightSyntax = SyntaxPalette(
     plain = Color(0xFF1A1C1E),
+    background = Color(0xFFFDFCFF),
+    gutterBackground = Color(0xFFF1F2F6),
     gutter = Color(0xFF9AA0A6),
     currentLineGutter = Color(0xFF2F5DA8),
     selection = Color(0x332F5DA8),
@@ -82,6 +110,8 @@ private val LightSyntax = SyntaxPalette(
 
 private val DarkSyntax = SyntaxPalette(
     plain = Color(0xFFE3E2E6),
+    background = Color(0xFF121316),
+    gutterBackground = Color(0xFF1B1D21),
     gutter = Color(0xFF6B7280),
     currentLineGutter = Color(0xFFAAC7FF),
     selection = Color(0x33AAC7FF),
