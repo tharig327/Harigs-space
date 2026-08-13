@@ -252,6 +252,7 @@ fun EditorScreen(viewModel: EditorViewModel) {
                 preferences = ui.preferences,
                 matches = ui.matches,
                 currentMatch = ui.currentMatch,
+                onFontSizeChange = viewModel::setFontSize,
                 modifier = Modifier.weight(1f),
             )
         }

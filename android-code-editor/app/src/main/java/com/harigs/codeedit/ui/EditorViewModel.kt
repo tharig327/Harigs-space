@@ -395,6 +395,13 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         ui = ui.copy(preferences = preferences)
     }
 
+    /** Sets the editor font size, as the pinch gesture and the settings do. */
+    fun setFontSize(sizeSp: Int) {
+        val clamped = sizeSp.coerceIn(EditorPreferences.FONT_SIZE_RANGE)
+        if (clamped == ui.preferences.fontSizeSp) return
+        updatePreferences(ui.preferences.copy(fontSizeSp = clamped))
+    }
+
     fun setLanguage(language: Language) {
         languageChosenByUser = true
         ui = ui.copy(language = language)

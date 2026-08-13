@@ -1,6 +1,8 @@
 package com.harigs.codeedit.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,11 +21,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.ExperimentalTextApi
@@ -51,6 +56,7 @@ import com.harigs.codeedit.editor.SyntaxHighlighter
 import com.harigs.codeedit.editor.TextTools
 import com.harigs.codeedit.editor.Token
 import com.harigs.codeedit.editor.TokenType
+import com.harigs.codeedit.editor.ZoomMath
 import com.harigs.codeedit.ui.theme.LocalSyntaxPalette
 import com.harigs.codeedit.ui.theme.SyntaxPalette
 
@@ -76,6 +82,7 @@ fun CodeEditor(
     preferences: EditorPreferences,
     matches: List<IntRange>,
     currentMatch: Int,
+    onFontSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalSyntaxPalette.current
@@ -117,7 +124,46 @@ fun CodeEditor(
         )
     }
 
-    BoxWithConstraints(modifier.background(MaterialTheme.colorScheme.surface)) {
+    // Read through state so the long-lived gesture loop always sees the
+    // current size and callback rather than the ones from its first composition.
+    val fontSize by rememberUpdatedState(preferences.fontSizeSp)
+    val onZoom by rememberUpdatedState(onFontSizeChange)
+
+    BoxWithConstraints(
+        modifier
+            .background(MaterialTheme.colorScheme.surface)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var previousSpan = 0f
+                    var carriedScale = 1f
+                    while (true) {
+                        // The initial pass runs before the text field sees the
+                        // event, so a two-finger pinch can be claimed without
+                        // disturbing taps, selection or scrolling.
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val down = event.changes.filter { it.pressed }
+                        if (down.isEmpty()) break
+                        if (down.size < 2) {
+                            previousSpan = 0f
+                            continue
+                        }
+                        val span = (down[0].position - down[1].position).getDistance()
+                        if (previousSpan > 0f && span > 0f) {
+                            val result = ZoomMath.applyScale(
+                                currentSize = fontSize,
+                                scale = carriedScale * (span / previousSpan),
+                                range = EditorPreferences.FONT_SIZE_RANGE,
+                            )
+                            carriedScale = result.remainingScale
+                            if (result.fontSize != fontSize) onZoom(result.fontSize)
+                        }
+                        previousSpan = span
+                        down.forEach { it.consume() }
+                    }
+                }
+            },
+    ) {
         val viewportHeight = maxHeight
         val viewportWidth = maxWidth
         val contentHeight = layout?.let { with(density) { it.size.height.toDp() } }

@@ -32,6 +32,8 @@ Kotlin, Jetpack Compose, no third-party libraries.
   comment/uncomment for the current selection.
 - An extra key row for the characters phone keyboards hide: braces, brackets,
   quotes, operators and tab.
+- Pinch to zoom the text in and out, between 8 and 32 sp. Two fingers zoom;
+  single-finger taps, selection and scrolling are untouched.
 - Word wrap, font size, indent width, tabs-versus-spaces, light/dark/system
   theme — all persisted.
 
