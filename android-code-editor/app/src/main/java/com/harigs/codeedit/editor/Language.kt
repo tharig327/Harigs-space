@@ -27,7 +27,7 @@ enum class Language(
     ),
     C_LIKE(
         displayName = "C/C++",
-        extensions = listOf("c", "h", "cc", "cpp", "cxx", "hpp", "hh", "cs", "swift", "go", "rs", "dart", "scala", "groovy"),
+        extensions = listOf("c", "h", "cc", "cpp", "cxx", "hpp", "hh", "cs", "swift", "go", "rs", "dart", "scala", "groovy", "gradle"),
         lineComment = "//",
         blockComment = "/*" to "*/",
     ),
@@ -83,9 +83,14 @@ enum class Language(
         extensions = listOf("toml", "ini", "cfg", "conf", "properties", "gitconfig", "editorconfig"),
         lineComment = "#",
     ),
+    HTML(
+        displayName = "HTML",
+        extensions = listOf("html", "htm", "xhtml", "vue"),
+        blockComment = "<!--" to "-->",
+    ),
     XML(
-        displayName = "XML/HTML",
-        extensions = listOf("xml", "html", "htm", "xhtml", "svg", "vue", "plist", "gradle"),
+        displayName = "XML",
+        extensions = listOf("xml", "svg", "plist", "xsd", "xsl", "resx"),
         blockComment = "<!--" to "-->",
     ),
     MARKDOWN(
@@ -93,6 +98,9 @@ enum class Language(
         extensions = listOf("md", "markdown", "mdx"),
     ),
     ;
+
+    /** The extension suggested when saving a document that has no name yet. */
+    val defaultExtension: String get() = extensions.firstOrNull() ?: "txt"
 
     companion object {
         /** File names (lowercase, no extension) that map directly to a language. */

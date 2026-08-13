@@ -66,6 +66,9 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
 
     private var savedText: String = ""
 
+    /** Set once the user picks a language by hand, so saving cannot override it. */
+    private var languageChosenByUser = false
+
     init {
         ui = ui.copy(preferences = settings.load(), recents = recentFiles.list())
         undoManager.reset(EditorSnapshot("", 0, 0))
@@ -274,6 +277,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun newDocument() {
         content = TextFieldValue("")
         savedText = ""
+        languageChosenByUser = false
         undoManager.reset(EditorSnapshot("", 0, 0))
         ui = ui.copy(
             uri = null,
@@ -298,6 +302,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 is LoadResult.Success -> {
                     val document = result.document
+                    languageChosenByUser = false
                     content = TextFieldValue(document.text)
                     savedText = document.text
                     undoManager.reset(EditorSnapshot(document.text, 0, 0))
@@ -319,6 +324,19 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
+    }
+
+    /**
+     * The name to offer in the system "create file" dialog. An untitled
+     * document is named after the chosen language, because a name without an
+     * extension makes the document provider invent one — which is how an HTML
+     * file ends up saved as .txt.
+     */
+    fun suggestedFileName(): String {
+        val name = ui.fileName
+        val hasExtension = name != EditorUiState.UNTITLED &&
+            name.substringAfterLast('.', "").isNotEmpty()
+        return if (hasExtension) name else "untitled.${ui.language.defaultExtension}"
     }
 
     /** Saves to the current file; does nothing when the document is untitled. */
@@ -351,7 +369,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             ui = ui.copy(
                 uri = uri,
                 fileName = name,
-                language = Language.fromFileName(name),
+                language = if (languageChosenByUser) ui.language else Language.fromFileName(name),
                 isDirty = content.text != savedText,
                 isBusy = false,
                 recents = recentFiles.list(),
@@ -378,6 +396,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setLanguage(language: Language) {
+        languageChosenByUser = true
         ui = ui.copy(language = language)
     }
 

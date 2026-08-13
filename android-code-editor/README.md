@@ -7,7 +7,9 @@ Kotlin, Jetpack Compose, no third-party libraries.
 
 **Files**
 - Opens and saves any text file through the Storage Access Framework, so it
-  needs no storage permission at all.
+  needs no storage permission at all. New files are offered with an extension
+  matching the current language, and the name typed in the save dialog is kept
+  exactly as typed.
 - Opens files handed over by file managers and other apps (`VIEW`, `EDIT` and
   `SEND` intents for text types).
 - Remembers the last 15 files, with persisted access across restarts.
@@ -18,7 +20,7 @@ Kotlin, Jetpack Compose, no third-party libraries.
 **Editing**
 - Syntax highlighting for Kotlin, Java, C/C++/C#/Go/Rust/Swift/Dart,
   JavaScript/TypeScript, Python, Ruby, PHP, shell, SQL, CSS, JSON, YAML,
-  TOML/INI, XML/HTML and Markdown, detected from the file name and overridable
+  TOML/INI, HTML, XML and Markdown, detected from the file name and overridable
   from the menu.
 - A line-number gutter that stays aligned with the text, including when lines
   wrap.

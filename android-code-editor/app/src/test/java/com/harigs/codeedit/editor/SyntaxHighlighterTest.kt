@@ -157,6 +157,37 @@ class SyntaxHighlighterTest {
     }
 
     @Test
+    fun `html and xml are separate languages sharing the markup tokenizer`() {
+        assertEquals(Language.HTML, Language.fromFileName("index.html"))
+        assertEquals(Language.HTML, Language.fromFileName("page.HTM"))
+        assertEquals(Language.XML, Language.fromFileName("strings.xml"))
+        assertEquals(Language.C_LIKE, Language.fromFileName("build.gradle"))
+
+        val source = """<p class="x">hi</p>"""
+        assertEquals(
+            SyntaxHighlighter.tokenize(source, Language.XML),
+            SyntaxHighlighter.tokenize(source, Language.HTML),
+        )
+    }
+
+    @Test
+    fun `every language suggests a usable extension`() {
+        assertEquals("txt", Language.PLAIN.defaultExtension)
+        assertEquals("html", Language.HTML.defaultExtension)
+        assertEquals("kt", Language.KOTLIN.defaultExtension)
+        assertEquals("py", Language.PYTHON.defaultExtension)
+        for (language in Language.entries) {
+            val extension = language.defaultExtension
+            assertTrue("$language has a blank extension", extension.isNotBlank())
+            assertEquals(
+                "$language does not round-trip through its own extension",
+                language,
+                Language.fromFileName("untitled.$extension"),
+            )
+        }
+    }
+
+    @Test
     fun `language is detected from the file name`() {
         assertEquals(Language.KOTLIN, Language.fromFileName("Main.kt"))
         assertEquals(Language.KOTLIN, Language.fromFileName("build.gradle.kts"))
@@ -164,6 +195,7 @@ class SyntaxHighlighterTest {
         assertEquals(Language.SHELL, Language.fromFileName("Makefile"))
         assertEquals(Language.SHELL, Language.fromFileName(".bashrc"))
         assertEquals(Language.MARKDOWN, Language.fromFileName("README.md"))
+        assertEquals(Language.HTML, Language.fromFileName("index.html"))
         assertEquals(Language.PLAIN, Language.fromFileName("mystery"))
         assertEquals(Language.PLAIN, Language.fromFileName(null))
     }

@@ -32,7 +32,7 @@ object SyntaxHighlighter {
     fun tokenize(text: CharSequence, language: Language): List<Token> = when (language) {
         Language.PLAIN -> emptyList()
         Language.MARKDOWN -> tokenizeMarkdown(text)
-        Language.XML -> tokenizeMarkup(text)
+        Language.XML, Language.HTML -> tokenizeMarkup(text)
         else -> tokenizeCode(text, specFor(language))
     }
 

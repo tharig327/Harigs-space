@@ -70,13 +70,21 @@ fun EditorScreen(viewModel: EditorViewModel) {
         statusLine(content.text, content.selection.start, ui)
     }
 
-    val openLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri -> uri?.let(viewModel::open) }
+    // The contracts are remembered so the result registry is not torn down and
+    // re-registered on every recomposition.
+    val openContract = remember { ActivityResultContracts.OpenDocument() }
+    // "*/*" matters: with a concrete type the document provider replaces the
+    // extension typed in the dialog with the one it derives from that type, so
+    // every file lands as .txt. With a wildcard it keeps the name verbatim.
+    val createContract = remember { ActivityResultContracts.CreateDocument("*/*") }
 
-    val createLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("text/plain"),
-    ) { uri -> uri?.let(viewModel::saveAs) }
+    val openLauncher = rememberLauncherForActivityResult(openContract) { uri ->
+        uri?.let(viewModel::open)
+    }
+
+    val createLauncher = rememberLauncherForActivityResult(createContract) { uri ->
+        uri?.let(viewModel::saveAs)
+    }
 
     /** Runs [action], asking first when the current document has unsaved edits. */
     fun guarded(action: () -> Unit) {
@@ -126,7 +134,7 @@ fun EditorScreen(viewModel: EditorViewModel) {
                         Icon(Icons.Default.Search, contentDescription = "Find and replace")
                     }
                     IconButton(
-                        onClick = { viewModel.save { createLauncher.launch(ui.fileName) } },
+                        onClick = { viewModel.save { createLauncher.launch(viewModel.suggestedFileName()) } },
                         enabled = !ui.isBusy,
                     ) {
                         Icon(Icons.Default.Save, contentDescription = "Save")
@@ -161,7 +169,7 @@ fun EditorScreen(viewModel: EditorViewModel) {
                                 text = { Text("Save as…") },
                                 onClick = {
                                     menuOpen = false
-                                    createLauncher.launch(ui.fileName)
+                                    createLauncher.launch(viewModel.suggestedFileName())
                                 },
                             )
                             DropdownMenuItem(
