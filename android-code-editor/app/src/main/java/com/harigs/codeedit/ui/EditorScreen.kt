@@ -3,6 +3,8 @@ package com.harigs.codeedit.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +51,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.harigs.codeedit.editor.ImageRef
+import com.harigs.codeedit.editor.ImageRefs
 import com.harigs.codeedit.editor.Language
 import com.harigs.codeedit.editor.TextTools
 
@@ -64,6 +68,9 @@ fun EditorScreen(viewModel: EditorViewModel) {
     var showSettings by remember { mutableStateOf(false) }
     var showRecents by remember { mutableStateOf(false) }
     var showLanguages by remember { mutableStateOf(false) }
+    var showImages by remember { mutableStateOf(false) }
+    var showFolder by remember { mutableStateOf(false) }
+    var preview by remember { mutableStateOf<ImageRef?>(null) }
     var pendingDiscard by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val status = remember(content.text, content.selection.start, ui.language, ui.crlf) {
@@ -84,6 +91,19 @@ fun EditorScreen(viewModel: EditorViewModel) {
 
     val createLauncher = rememberLauncherForActivityResult(createContract) { uri ->
         uri?.let(viewModel::saveAs)
+    }
+
+    val folderContract = remember { ActivityResultContracts.OpenDocumentTree() }
+    val folderLauncher = rememberLauncherForActivityResult(folderContract) { uri ->
+        if (uri != null) {
+            viewModel.openFolder(uri)
+            showFolder = true
+        }
+    }
+
+    // Cheap: this only scans the caret's own line.
+    val caretImage = remember(content.text, content.selection.start) {
+        ImageRefs.at(content.text, content.selection.start)
     }
 
     /** Runs [action], asking first when the current document has unsaved edits. */
@@ -166,6 +186,33 @@ fun EditorScreen(viewModel: EditorViewModel) {
                                 },
                             )
                             DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        if (ui.folderUri == null) {
+                                            "Open folder…"
+                                        } else {
+                                            "Browse ${ui.folderName}"
+                                        },
+                                    )
+                                },
+                                onClick = {
+                                    menuOpen = false
+                                    if (ui.folderUri == null) {
+                                        folderLauncher.launch(null)
+                                    } else {
+                                        viewModel.refreshFolder()
+                                        showFolder = true
+                                    }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Images") },
+                                onClick = {
+                                    menuOpen = false
+                                    showImages = true
+                                },
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Save as…") },
                                 onClick = {
                                     menuOpen = false
@@ -202,21 +249,29 @@ fun EditorScreen(viewModel: EditorViewModel) {
             )
         },
         bottomBar = {
-            SymbolBar(
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .imePadding(),
-                onInsert = viewModel::insert,
-                onIndent = { viewModel.shiftIndent(add = true) },
-                onUnindent = { viewModel.shiftIndent(add = false) },
-                onTab = {
-                    if (content.selection.collapsed) {
-                        viewModel.insert(ui.preferences.indentUnit)
-                    } else {
-                        viewModel.shiftIndent(add = true)
-                    }
-                },
-            )
+            Column {
+                if (caretImage != null) {
+                    ImageCaretBar(
+                        ref = caretImage,
+                        onPreview = { preview = caretImage },
+                    )
+                }
+                SymbolBar(
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .imePadding(),
+                    onInsert = viewModel::insert,
+                    onIndent = { viewModel.shiftIndent(add = true) },
+                    onUnindent = { viewModel.shiftIndent(add = false) },
+                    onTab = {
+                        if (content.selection.collapsed) {
+                            viewModel.insert(ui.preferences.indentUnit)
+                        } else {
+                            viewModel.shiftIndent(add = true)
+                        }
+                    },
+                )
+            }
         },
     ) { padding ->
         Column(
@@ -274,6 +329,59 @@ fun EditorScreen(viewModel: EditorViewModel) {
                 showLanguages = false
             },
             onDismiss = { showLanguages = false },
+        )
+    }
+
+    if (showImages) {
+        ImagesSheet(
+            refs = remember(content.text) { viewModel.imageRefs() },
+            load = viewModel::loadImage,
+            folderName = ui.folderName,
+            onOpen = {
+                showImages = false
+                preview = it
+            },
+            onChooseFolder = {
+                showImages = false
+                folderLauncher.launch(null)
+            },
+            onDismiss = { showImages = false },
+        )
+    }
+
+    if (showFolder && ui.folderUri != null) {
+        FolderSheet(
+            folderName = ui.folderName,
+            trail = ui.folderTrail,
+            entries = ui.folderEntries,
+            loading = ui.folderLoading,
+            onEnter = viewModel::enterFolder,
+            onUp = viewModel::leaveFolder,
+            onOpenFile = { entry ->
+                showFolder = false
+                guarded { viewModel.openFromFolder(entry) }
+            },
+            onChooseFolder = {
+                showFolder = false
+                folderLauncher.launch(null)
+            },
+            onForget = {
+                showFolder = false
+                viewModel.forgetFolder()
+            },
+            onDismiss = { showFolder = false },
+        )
+    }
+
+    preview?.let { ref ->
+        ImagePreviewDialog(
+            ref = ref,
+            load = viewModel::loadImage,
+            onChooseFolder = {
+                preview = null
+                folderLauncher.launch(null)
+            },
+            onDismiss = { preview = null },
         )
     }
 
@@ -343,6 +451,30 @@ fun EditorScreen(viewModel: EditorViewModel) {
                 TextButton(onClick = { pendingDiscard = null }) { Text("Cancel") }
             },
         )
+    }
+}
+
+/** Shown when the caret sits inside an image reference. */
+@Composable
+private fun ImageCaretBar(ref: ImageRef, onPreview: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .clickable(onClick = onPreview)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = ref.displayName,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onPreview) { Text("Preview") }
     }
 }
 

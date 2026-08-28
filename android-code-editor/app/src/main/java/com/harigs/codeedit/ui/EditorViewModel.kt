@@ -10,12 +10,18 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.harigs.codeedit.data.DocumentStore
+import com.harigs.codeedit.data.FolderEntry
+import com.harigs.codeedit.data.FolderStore
+import com.harigs.codeedit.data.ImageLoader
+import com.harigs.codeedit.data.ImageResult
 import com.harigs.codeedit.data.EditorPreferences
 import com.harigs.codeedit.data.EditorSettings
 import com.harigs.codeedit.data.LoadResult
 import com.harigs.codeedit.data.RecentFile
 import com.harigs.codeedit.data.RecentFiles
 import com.harigs.codeedit.editor.EditorSnapshot
+import com.harigs.codeedit.editor.ImageRef
+import com.harigs.codeedit.editor.ImageRefs
 import com.harigs.codeedit.editor.Language
 import com.harigs.codeedit.editor.TextTools
 import com.harigs.codeedit.editor.UndoManager
@@ -42,6 +48,15 @@ data class EditorUiState(
     val preferences: EditorPreferences = EditorPreferences(),
     val recents: List<RecentFile> = emptyList(),
     val message: String? = null,
+    /** The folder granted for browsing and for resolving relative image paths. */
+    val folderUri: Uri? = null,
+    val folderName: String = "",
+    /** The folder currently shown in the browser, deepest first in [folderTrail]. */
+    val folderTrail: List<FolderEntry> = emptyList(),
+    val folderEntries: List<FolderEntry> = emptyList(),
+    val folderLoading: Boolean = false,
+    /** The folder relative image paths are resolved against. */
+    val imageFolder: Uri? = null,
 ) {
     val hasFile: Boolean get() = uri != null
 
@@ -55,6 +70,8 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private val store = DocumentStore(application)
     private val settings = EditorSettings(application)
     private val recentFiles = RecentFiles(application)
+    private val folders = FolderStore(application)
+    private val images = ImageLoader(application)
     private val undoManager = UndoManager()
 
     /** Text is kept apart from [ui] so typing only invalidates the text field. */
@@ -70,7 +87,14 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private var languageChosenByUser = false
 
     init {
-        ui = ui.copy(preferences = settings.load(), recents = recentFiles.list())
+        val folder = folders.current()
+        ui = ui.copy(
+            preferences = settings.load(),
+            recents = recentFiles.list(),
+            folderUri = folder,
+            folderName = folder?.let { folders.name(it) }.orEmpty(),
+            imageFolder = folder,
+        )
         undoManager.reset(EditorSnapshot("", 0, 0))
     }
 
@@ -387,6 +411,74 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         recentFiles.clear()
         ui = ui.copy(recents = emptyList())
     }
+
+    // ------------------------------------------------------------- folders --
+
+    /** Accepts a folder the user granted, and shows its contents. */
+    fun openFolder(uri: Uri) {
+        folders.remember(uri)
+        ui = ui.copy(
+            folderUri = uri,
+            folderName = folders.name(uri),
+            folderTrail = emptyList(),
+            // Until a file is opened from inside it, the root is the base for
+            // relative image paths.
+            imageFolder = uri,
+        )
+        browse(uri, trail = emptyList())
+    }
+
+    /** Lists the granted folder again from wherever the browser last was. */
+    fun refreshFolder() {
+        val current = ui.folderTrail.lastOrNull()?.uri ?: ui.folderUri ?: return
+        browse(current, ui.folderTrail)
+    }
+
+    fun enterFolder(entry: FolderEntry) = browse(entry.uri, ui.folderTrail + entry)
+
+    /** Steps back out of [entry], or to the root when it is the first crumb. */
+    fun leaveFolder() {
+        val trail = ui.folderTrail.dropLast(1)
+        val target = trail.lastOrNull()?.uri ?: ui.folderUri ?: return
+        browse(target, trail)
+    }
+
+    fun forgetFolder() {
+        folders.forget()
+        ui = ui.copy(
+            folderUri = null,
+            folderName = "",
+            folderTrail = emptyList(),
+            folderEntries = emptyList(),
+            imageFolder = null,
+        )
+    }
+
+    private fun browse(uri: Uri, trail: List<FolderEntry>) {
+        ui = ui.copy(folderLoading = true, folderTrail = trail)
+        viewModelScope.launch {
+            val entries = withContext(Dispatchers.IO) { folders.list(uri) }
+            ui = ui.copy(folderEntries = entries, folderLoading = false)
+        }
+    }
+
+    /** Opens a document from the browser, using its folder for image paths. */
+    fun openFromFolder(entry: FolderEntry) {
+        val base = ui.folderTrail.lastOrNull()?.uri ?: ui.folderUri
+        ui = ui.copy(imageFolder = base)
+        open(entry.uri)
+    }
+
+    // -------------------------------------------------------------- images --
+
+    /** Every image the document points at, in document order. */
+    fun imageRefs(): List<ImageRef> = ImageRefs.findAll(content.text)
+
+    /** Decodes [ref] for display, off the main thread. */
+    suspend fun loadImage(ref: ImageRef, boxWidth: Int, boxHeight: Int): ImageResult =
+        withContext(Dispatchers.IO) {
+            images.load(ref, ui.imageFolder, boxWidth, boxHeight)
+        }
 
     // ------------------------------------------------------------ settings --
 

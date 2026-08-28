@@ -12,6 +12,8 @@ Kotlin, Jetpack Compose, no third-party libraries.
   exactly as typed.
 - Opens files handed over by file managers and other apps (`VIEW`, `EDIT` and
   `SEND` intents for text types).
+- Opens a whole folder, browsable in the app, which also resolves the relative
+  paths in image references.
 - Remembers the last 15 files, with persisted access across restarts.
 - Refuses binary files, non-UTF-8 files, and anything above 8 MB rather than
   corrupting them, and preserves CRLF line endings on save.
@@ -38,6 +40,11 @@ Kotlin, Jetpack Compose, no third-party libraries.
   sliders or a hex code, with a live preview and a low-contrast warning. The
   gutter and search highlights are derived from the pair so they stay legible,
   and either colour can be reset to the theme on its own.
+- Previews the images a document references — Markdown `![alt](figures/x.jpg)`,
+  HTML `<img src>` and CSS `url()`, including `data:` URIs. Put the caret in a
+  reference and a Preview bar appears; the Images menu lists every image in the
+  document with thumbnails. Relative paths resolve against the opened folder,
+  and large photos are subsampled while decoding rather than loaded whole.
 - Word wrap, font size, indent width, tabs-versus-spaces, light/dark/system
   theme — all persisted.
 
@@ -89,3 +96,8 @@ tests in `app/src/test/`.
 - The tokenizer is a lexer, not a parser: it colours tokens, it does not
   understand the code.
 - Only UTF-8 is supported. Other encodings are reported rather than mangled.
+- Image previews are local only: the app requests no internet permission, so an
+  image at an `http(s)` address is reported rather than downloaded.
+- A relative image path can only be resolved once its folder has been granted —
+  Android gives an app access to the file it opened, not to that file's
+  neighbours.
