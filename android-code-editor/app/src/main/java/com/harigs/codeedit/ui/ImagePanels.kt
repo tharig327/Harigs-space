@@ -23,7 +23,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
@@ -175,9 +174,8 @@ private fun ImageRow(ref: ImageRef, load: ImageLoad, onClick: () -> Unit) {
     val density = LocalDensity.current
     val thumbPx = with(density) { 56.dp.toPx() }.toInt()
     // Only rows the list actually shows are decoded.
-    val result by produceState<ImageResult?>(initialValue = null, ref) {
-        value = load(ref, thumbPx, thumbPx)
-    }
+    var result by remember(ref) { mutableStateOf<ImageResult?>(null) }
+    LaunchedEffect(ref) { result = load(ref, thumbPx, thumbPx) }
 
     Row(
         Modifier
